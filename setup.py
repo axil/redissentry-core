@@ -8,6 +8,7 @@ setup(name='redissentry',
       author='Lev Maximov',
       author_email='lev.maximov@gmail.com',
       url='http://github.com/axil/redissentry',
+      requires=['redis'],
       packages=['redissentry'],
       license='MIT',
       classifiers = [
