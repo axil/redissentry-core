@@ -8,6 +8,8 @@ redissentry.django docs.
 Installation
 ------------
 
+::
+
     from redissentry import RedisSentry
     
     def protected_auth(username, password):
