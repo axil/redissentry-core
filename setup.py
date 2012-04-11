@@ -2,13 +2,13 @@
 
 from distutils.core import setup
 
-setup(name='redissentry',
+setup(name='redis-sentry-core',
       version='0.1.0',
       description='Module protecting a web framework against password bruteforce attacks',
       author='Lev Maximov',
       author_email='lev.maximov@gmail.com',
-      url='http://github.com/axil/redissentry',
-      packages=['redissentry'],
+      url='http://github.com/axil/redis-sentry-core',
+      packages=['redissentrycore'],
       install_requires=['redis'],
       license='MIT',
       classifiers = [

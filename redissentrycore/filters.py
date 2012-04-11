@@ -41,7 +41,7 @@ class Filter(Logger):
         elif n//N <= len(self.delays):
             return self.delays[n//N-1]
         else:
-            return -exprand(3*60, 7*24*60)
+            return -exprand(3*60, 23*60)
 
     def get_counter_ttl(self, n):
         return min( n * self.delta_counter_ttl, self.max_counter_ttl )
