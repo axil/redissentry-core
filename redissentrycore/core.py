@@ -11,13 +11,13 @@ from .filters import (
 )
 
 class RedisSentryBase(Logger):
-    def __init__(self, ip, username, store_history_record, db):
+    def __init__(self, ip, username, host, port, password, db, store_history_record):
         self.ip = ip
         self.username = username
         self.store_history_record = store_history_record
         self.db = db            # storing for debug purposes since there's no way to ask Redis which db it is using now
 
-        self.r = redis.Redis(db=db)
+        self.r = redis.Redis(host=host, port=port, password=password, db=db)
         self.logger = logging.getLogger('redissentry')
         self.user_exists = None
     
@@ -39,8 +39,8 @@ class RedisSentryLite(RedisSentryBase):
     # Doesn't handle distributed attacks, less efficient, provides worse user experience.
     # Simple.
 
-    def __init__(self, ip, username, db=0, store_history_record = lambda *x, **y: None):
-        super(RedisSentryLite, self).__init__(ip, username, db, store_history_record)
+    def __init__(self, ip, username, host='localhost', port=6379, password='', db=0, store_history_record = lambda *x, **y: None):
+        super(RedisSentryLite, self).__init__(ip, username, host, port, password, db, store_history_record)
         self.fa = FilterALite(ip, username)
     
     def ask(self):
@@ -57,11 +57,14 @@ class RedisSentry(RedisSentryBase):
     # maximizing blocking time as experienced by attacker
 
     def __init__(self, ip, username, 
-            user_exists_callback = lambda x: False,
+            host = 'localhost',
+            port = 6379,
+            password = '',
+            db = 0,
             store_history_record = lambda *x, **y: None,
-            db = 0):
+            user_exists_callback = lambda x: False):
 
-        super(RedisSentry, self).__init__(ip, username, store_history_record, db)
+        super(RedisSentry, self).__init__(ip, username, host, port, password, db, store_history_record)
         
         self.user_exists_callback = user_exists_callback
         
