@@ -2,15 +2,7 @@ from traceback import format_exc
 from datetime import timedelta as td
 from struct import pack, unpack
 
-from .utils import exprand, humanize, fallback
-
-def sign(x):
-    if x>0:
-        return 1
-    elif x<0:
-        return -1
-    else:
-        return 0
+from .utils import humanize, fallback
 
 class Logger(object):
     def log(self, msg):
@@ -41,7 +33,7 @@ class Filter(Logger):
         elif n//N <= len(self.delays):
             return self.delays[n//N-1]
         else:
-            return -exprand(3*60, 23*60)
+            return 23*60
 
     def get_counter_ttl(self, n):
         return min( n * self.delta_counter_ttl, self.max_counter_ttl )
@@ -51,12 +43,10 @@ class Filter(Logger):
             r = self.r
             t = r.ttl(self.block)
             if t:
-                b = int(r.get(self.block))
-                self.log(self.log_message + ', ' +
-                        ('%s' if b > 0 else '(%s)') % str(td(seconds=t)) + ' left')
-                return t, b>0, self.error_message % (humanize(t) if b>0 else 'later')
+                self.log(self.log_message + ', ' + str(td(seconds=t)) + ' left')
+                return t, self.error_message % humanize(t)
             else:
-                return t, 1, ''
+                return t, ''
         except:
             self.error(format_exc())
 
@@ -70,12 +60,9 @@ class FilterA(Filter):
         self.block   = 'Ab:' + self.ip
 
     def test(self):
-        t, explicit, msg = super(FilterA, self).test()
+        t, msg = super(FilterA, self).test()
         if t:
-            if explicit:
-                zt, zmsg = self.rs().fzae.update()
-            else:
-                zt, zmsg = self.rs().fzai.update()
+            zt, zmsg = self.rs().fza.update()
         else:
             zt, zmsg = 0, ''
         return zt or t, zmsg or msg
@@ -87,14 +74,15 @@ class FilterA(Filter):
         log_msg = 'fa #%d from regular ip' % n
         t = self.get_delay(n) * 60
         if t:
-            r.set(self.block, abs(int(r.get(self.block) or 1)) * sign(t))
-            r.expire(self.block, abs(t))
+            if not r.exists(self.block):
+                r.set(self.block, 1)
+            r.expire(self.block, t)
             self.rs().store_history_record('ip', self.ip, self.username, n)
-            log_msg += ', ip blocked for ' + ('%d' if t>0 else '(%d)') % abs(t/60) + ' min'
-            res = abs(t), self.error_message % (humanize(t) if t>0 else 'later')
+            log_msg += ', ip blocked for %d min' % (t/60)
+            res = t, self.error_message % humanize(t)
         else:
             res = 0, ''
-        r.expire(self.counter, self.get_counter_ttl(n) * 60 + abs(t))
+        r.expire(self.counter, self.get_counter_ttl(n) * 60 + t)
         self.log(log_msg + '; ttl = ' + str(td(minutes=self.get_counter_ttl(n))))
         return res
 
@@ -109,12 +97,9 @@ class FilterB(Filter):
         self.error_message = 'Too many failed attempts for %s. Try again %%s.' % self.username
     
     def test(self):
-        t, explicit, msg = super(FilterB, self).test()
+        t, msg = super(FilterB, self).test()
         if t:
-            if explicit:
-                zt, zmsg = self.rs().fzbe.update()
-            else:
-                zt, zmsg = self.rs().fzbi.update()
+            zt, zmsg = self.rs().fzb.update()
         else:
             zt, zmsg = 0, ''
         return zt or t, zmsg or msg
@@ -136,15 +121,16 @@ class FilterB(Filter):
                 log_msg = 'fa #%d from ip #%d with the same username' % (fa_num, ip_num)
                 t = self.get_delay(fa_num) * 60
                 if t:
-                    r.set(self.block, abs(int(r.get(self.block) or 1)) * sign(t))
-                    r.expire(self.block, abs(t))
+                    if not r.exists(self.block):
+                        r.set(self.block, 1)
+                    r.expire(self.block, t)
                     self.rs().store_history_record('username', ', '.join('%s(%.0f)' % ('.'.join(map(str,unpack('4B', k))), v) for k, v in stats)[:2048], self.username, ip_num)
-                    log_msg += ', username blocked for ' + ('%d' if t>0 else '(%d)') % abs(t/60) + ' min'
-                    res = abs(t), self.error_message % (humanize(t) if t>0 else 'later')
+                    log_msg += ', username blocked for %d min' % (t/60)
+                    res = t, self.error_message % humanize(t)
                 self.log(log_msg)
             else:
                 t = 0
-            r.expire(self.counter, self.get_counter_ttl(fa_num) * 60 + abs(t))
+            r.expire(self.counter, self.get_counter_ttl(fa_num) * 60 + t)
         else:
             pass
         return res
@@ -174,12 +160,9 @@ class FilterW(Filter):
             self.logger.error(format_exc())
 
     def test(self):
-        t, explicit, msg = super(FilterW, self).test()
+        t, msg = super(FilterW, self).test()
         if t:
-            if explicit:
-                zt, zmsg = self.rs().fzwe.update()
-            else:
-                zt, zmsg = self.rs().fzwi.update()
+            zt, zmsg = self.rs().fzw.update()
         else:
             zt, zmsg = 0, ''
         return zt or t, zmsg or msg
@@ -192,11 +175,12 @@ class FilterW(Filter):
         log_msg = 'fa #%d from whitelisted ip:username' % n
         t = self.get_delay(n) * 60
         if t:
-            r.set(self.block, abs(int(r.get(self.block) or 1)) * sign(t))
-            r.expire(self.block, abs(t))
+            if not r.exists(self.block):
+                r.set(self.block, 1)
+            r.expire(self.block, t)
             self.rs().store_history_record('ip:username', self.ip, self.username, n)
-            log_msg += ', blocked for ' + ('%d' if t>0 else '(%d)') % abs(t/60) + ' min'
-            msg = self.error_message % (humanize(t) if t>0 else 'later')
+            log_msg += ', blocked for %d min' % (t/60)
+            msg = self.error_message % humanize(t)
         else:
             msg = ''
         self.log(log_msg)
@@ -205,21 +189,31 @@ class FilterW(Filter):
 
 class FilterZ(Filter):
     block_type = ''
+    period = 9
+
+    def get_delay(self, n):
+        if n % self.period:
+            return 0
+        elif n == self.period:
+            return 30
+        else:
+            return 23*60
 
     @fallback(0, '')
     def update(self):
         r = self.r
-        n = abs(r.incr(self.block) if int(r.get(self.block) or 1) > 0 else r.decr(self.block)) - 1
+        n = r.incr(self.block)
         log_msg = 'fa #%d from blocked %s' % (n, self.block_type)
         t = self.get_delay(n) * 60
         msg = ''
         if t:
-            log_msg += ', suggested delay: ' + str(td(seconds=abs(t)))
-            if abs(t) > r.ttl(self.block):
-                r.set(self.block, abs(int(r.get(self.block) or 1)) * sign(t))
-                r.expire(self.block, abs(t))
+            log_msg += ', suggested delay: ' + str(td(seconds=t))
+            if t > r.ttl(self.block):
+                if not r.exists(self.block):
+                    r.set(self.block, 1)
+                r.expire(self.block, t)
                 self.rs().store_history_record(self.block_type, self.ip, self.username, blocked_attempts = n)
-                log_msg += ', ' + self.block_type + ' blocked for ' + ('%s' if t>0 else '(%s)') % str(td(seconds=abs(t)))
+                log_msg += ', ' + self.block_type + ' blocked for ' + str(td(seconds=t))
                 msg = self.error_message % (humanize(t) if t>0 else 'later')
         self.log(log_msg)
         return t, msg
@@ -245,33 +239,4 @@ class FilterZW(FilterZ):
     def __init__(self, **kwargs):
         super(FilterZW, self).__init__(**kwargs)
         self.block   = 'Wb:' + self.ip + ':' + self.username
-
-class FilterZExplicit(object):
-    period = 9
-
-    def get_delay(self, n):
-        if n % self.period:
-            return 0
-        elif n == self.period:
-            return 30
-        else:
-            return -exprand(3*60, 23*60)
-
-class FilterZImplicit(object):
-    period = 3
-
-    def get_delay(self, n):
-        if n % self.period:
-            return 0
-        else:
-            return -exprand(3*60, 23*60)
-
-class FilterZAExplicit(FilterZExplicit, FilterZA):  pass
-class FilterZAImplicit(FilterZImplicit, FilterZA):  pass
-
-class FilterZBExplicit(FilterZExplicit, FilterZB):  pass
-class FilterZBImplicit(FilterZImplicit, FilterZB):  pass
-
-class FilterZWExplicit(FilterZExplicit, FilterZW):  pass
-class FilterZWImplicit(FilterZImplicit, FilterZW):  pass
 

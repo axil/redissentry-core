@@ -5,9 +5,7 @@ from .utils import fallback
 
 from .filters import (
     Logger, FilterA, FilterB, FilterW, 
-    FilterZAImplicit, FilterZAExplicit,
-    FilterZBImplicit, FilterZBExplicit,
-    FilterZWImplicit, FilterZWExplicit,
+    FilterZA, FilterZB, FilterZW,
 )
 
 class RedisSentryBase(Logger):
@@ -22,40 +20,7 @@ class RedisSentryBase(Logger):
         self.user_exists = None
     
 
-class FilterALite(FilterA):
-    delays = 5, 10, 30, 60, 5*60
-
-    def get_delay(self, n):
-        N = self.period
-        if n==0 or n % N != 0:
-            return 0
-        elif n//N < len(self.delays):
-            return self.delays[n//N]
-        else:
-            return self.delays[-1]
-
-
-class RedisSentryLite(RedisSentryBase):
-    # Doesn't handle distributed attacks, less efficient, provides worse user experience.
-    # Simple.
-
-    def __init__(self, ip, username, host='localhost', port=6379, password='', db=0, store_history_record = lambda *x, **y: None):
-        super(RedisSentryLite, self).__init__(ip, username, host, port, password, db, store_history_record)
-        self.fa = FilterALite(ip, username)
-    
-    def ask(self):
-        return self.fa.test()[-1]
-
-    def inform(self, result):
-        return self.fa.update()[-1]
-
-
 class RedisSentry(RedisSentryBase):
-    # Recommended class:
-    # Handles distributed attacks, has whitelist,
-    # minimizes blocking time as experienced by ordinary user while
-    # maximizing blocking time as experienced by attacker
-
     def __init__(self, ip, username, 
             host = 'localhost',
             port = 6379,
@@ -72,9 +37,9 @@ class RedisSentry(RedisSentryBase):
         self.fa = FilterA(**kw)
         self.fb = FilterB(**kw)
         self.fw = FilterW(**kw)
-        self.fzae, self.fzai = FilterZAExplicit(**kw), FilterZAImplicit(**kw)
-        self.fzbe, self.fzbi = FilterZBExplicit(**kw), FilterZBImplicit(**kw)
-        self.fzwe, self.fzwi = FilterZWExplicit(**kw), FilterZWImplicit(**kw)
+        self.fza = FilterZA(**kw)
+        self.fzb = FilterZB(**kw)
+        self.fzw = FilterZW(**kw)
 
     def cached_user_exists(self, username):
         if self.user_exists is None:

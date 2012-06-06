@@ -3,21 +3,6 @@ from random import random
 from functools import wraps
 from traceback import format_exc
 
-def exprand(a, b):
-    return a - int( (b - a) / 4 * log(1 - random()*( 1 - exp(-4) )) )
-
-def test_exprand():
-    bin = [0] * 11
-    for x in xrange(100):
-        bin[exprand(10, 99)//10] += 1
-    for x in xrange(11):
-        print bin[x]
-
-def test_exprand1():
-    N = 10000
-    print sum([exprand(3*24, 23*24) for x in xrange(N)]) / N / 24.
-        
-
 def humanize(t):
     """
     >>> print humanize(0)
