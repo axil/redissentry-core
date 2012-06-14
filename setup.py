@@ -2,7 +2,7 @@
 
 from distutils.core import setup
 
-setup(name='redis-sentry-core',
+setup(name='redissentry-core',
       version='0.1.0',
       description='Module protecting a web framework against password bruteforce attacks',
       author='Lev Maximov',
