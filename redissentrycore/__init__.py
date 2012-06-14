@@ -1,1 +1,1 @@
-from core import RedisSentry, RedisSentryLite
+from core import RedisSentry
