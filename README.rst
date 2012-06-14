@@ -5,8 +5,8 @@ RedisSentry
 This is generic RedisSentry documentaion, for django specific notes,
 see django-redissentry docs.
 
-Installation (eg into Flask-powered project)
---------------------------------------------
+Installation
+------------
 
 This is how RedisSentry can be integrated into any python-powered project (eg Flask):
 
