@@ -21,6 +21,9 @@ class RedisSentryBase(Logger):
     
 
 class RedisSentry(RedisSentryBase):
+    FA, FB, FW = FilterA, FilterB, FilterW
+    FZA, FZB, FZW = FilterZA, FilterZB, FilterZW
+    
     def __init__(self, ip, username, 
             host = 'localhost',
             port = 6379,
@@ -34,12 +37,12 @@ class RedisSentry(RedisSentryBase):
         self.user_exists_callback = user_exists_callback
         
         kw = {'ip': ip, 'username': username, 'logger': self.logger, 'r': self.r, 'rs': weakref.ref(self)}
-        self.fa = FilterA(**kw)
-        self.fb = FilterB(**kw)
-        self.fw = FilterW(**kw)
-        self.fza = FilterZA(**kw)
-        self.fzb = FilterZB(**kw)
-        self.fzw = FilterZW(**kw)
+        self.fa = self.FA(**kw)
+        self.fb = self.FB(**kw)
+        self.fw = self.FW(**kw)
+        self.fza = self.FZA(**kw)
+        self.fzb = self.FZB(**kw)
+        self.fzw = self.FZW(**kw)
 
     def cached_user_exists(self, username):
         if self.user_exists is None:
@@ -54,11 +57,21 @@ class RedisSentry(RedisSentryBase):
     
     @fallback('')
     def ask(self):
-        self.whitelisted = self.is_whitelisted()
-        if self.whitelisted:
-            res = self.fw.test()
+        # logically it is equivalent to:
+        #     self.whitelisted = self.is_whitelisted()
+        #     if self.whitelisted:
+        #         res = self.fw.test()
+        #     else:
+        #         res = max(self.fa.test(), self.fb.test())
+        # but optimized for hitting blacklist_w without an sql call
+        # (in case filterw counter is stored in the main db)
+        res = self.fw.test()
+        if res[1] == '':
+            self.whitelisted = self.is_whitelisted()
+            if not self.whitelisted:
+                res = max(self.fa.test(), self.fb.test())
         else:
-            res = max(self.fa.test(), self.fb.test())
+            self.whitelisted = True
         return res[1]
     
     @fallback('')

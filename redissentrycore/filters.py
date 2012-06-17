@@ -39,6 +39,9 @@ class Filter(Logger):
         return min( n * self.delta_counter_ttl, self.max_counter_ttl )
 
     def test(self):
+        # checks if the user should be blocked by this filter
+        # returns a tuple of block duration (for sorting) and block message
+        # or (0, '') if the user should not be blocked
         try:
             r = self.r
             t = r.ttl(self.block)
@@ -49,6 +52,11 @@ class Filter(Logger):
                 return t, ''
         except:
             self.error(format_exc())
+
+    def update(self):
+        # keeps track of failed login attempts
+        # returns: see test()
+        pass
 
 
 class FilterA(Filter):
