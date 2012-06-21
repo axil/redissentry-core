@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='redissentry-core',
-      version='0.1.1',
+      version='0.2.0',
       description='Module protecting a web framework against password bruteforce attacks',
       author='Lev Maximov',
       author_email='lev.maximov@gmail.com',
