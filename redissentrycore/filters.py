@@ -95,6 +95,46 @@ class FilterA(Filter):
         return res
 
 
+class FilterQ(Filter):
+    log_message = 'auth rejected from ip:username'
+    
+    def __init__(self, **kwargs):
+        super(FilterQ, self).__init__(**kwargs)
+        self.counter = 'Qc:' + self.ip
+        self.block   = 'Qb:' + self.ip + ':' + self.username
+        self.users_per_ip = 3
+
+    def get_for_ip(self):
+        pass
+
+    def test(self):
+        t, msg = super(FilterQ, self).test()
+        if t:
+            zt, zmsg = self.rs().fzq.update()
+        else:
+            zt, zmsg = 0, ''
+        return zt or t, zmsg or msg
+
+    @fallback(0, '')
+    def update(self):
+        r = self.r
+        n = r.incr(self.counter)
+        log_msg = 'fa #%d from regular ip:username' % n
+        t = self.get_delay(n) * 60
+        if t:
+            if not r.exists(self.block):
+                r.set(self.block, self.username + ':1')
+            r.expire(self.block, t)
+            self.rs().store_history_record('ip:username', self.ip, self.username, n)
+            log_msg += ', ip:username blocked for %d min' % (t/60)
+            res = t, self.error_message % humanize(t)
+        else:
+            res = 0, ''
+        r.expire(self.counter, self.get_counter_ttl(n) * 60 + t)
+        self.log(log_msg + '; ttl = ' + str(td(minutes=self.get_counter_ttl(n))))
+        return res
+
+
 class FilterB(Filter):
     log_message = 'auth rejected for username'
 

@@ -3,9 +3,9 @@ import weakref
 
 from .utils import fallback
 
-from .filters import (
-    Logger, FilterA, FilterB, FilterW, 
-    FilterZA, FilterZB, FilterZW,
+from .filters import ( Logger, 
+    FilterA, FilterQ, FilterB, FilterW,
+    FilterZA, FilterZQ, FilterZB, FilterZW,
 )
 
 class RedisSentryBase(Logger):
@@ -21,8 +21,8 @@ class RedisSentryBase(Logger):
     
 
 class RedisSentry(RedisSentryBase):
-    FA, FB, FW = FilterA, FilterB, FilterW
-    FZA, FZB, FZW = FilterZA, FilterZB, FilterZW
+    FA, FB, FW, FQ = FilterA, FilterQ, FilterB, FilterW
+    FZA, FZB, FZW, FZQ = FilterZA, FilterZQ, FilterZB, FilterZW
     
     def __init__(self, ip, username, 
             host = 'localhost',
@@ -38,9 +38,11 @@ class RedisSentry(RedisSentryBase):
         
         kw = {'ip': ip, 'username': username, 'logger': self.logger, 'r': self.r, 'rs': weakref.ref(self)}
         self.fa = self.FA(**kw)
+        self.fq = self.FQ(**kw)
         self.fb = self.FB(**kw)
         self.fw = self.FW(**kw)
         self.fza = self.FZA(**kw)
+        self.fzq = self.FZQ(**kw)
         self.fzb = self.FZB(**kw)
         self.fzw = self.FZW(**kw)
 
@@ -54,6 +56,12 @@ class RedisSentry(RedisSentryBase):
     
     def is_whitelisted(self):
         return self.fw.is_whitelisted()
+    
+    def test_aq(self):
+        res = self.fq.test()
+        if res[0] == 0:
+            res = self.fa.test()
+        return res
     
     @fallback('')
     def ask(self):
@@ -69,11 +77,24 @@ class RedisSentry(RedisSentryBase):
         if res[1] == '':
             self.whitelisted = self.is_whitelisted()
             if not self.whitelisted:
-                res = max(self.fa.test(), self.fb.test())
+                res = max(self.test_aq(), self.fb.test())
         else:
             self.whitelisted = True
         return res[1]
     
+    def update_aq(self):
+        qs = self.fq.get_for_ip(self.ip):
+        for q in qs:
+            uid, fa = q.split(':')
+            if uid == self.uid:
+                res = self.fq.update()
+                return res
+        if len(qs) < self.fq.users_per_ip:
+            res = self.fq.update()
+        else:
+            res = self.fa.update()
+        return res
+
     @fallback('')
     def inform(self, result):
         if result:
@@ -83,7 +104,7 @@ class RedisSentry(RedisSentryBase):
             if self.whitelisted:
                 res = self.fw.update()
             else:
-                res = max(self.fa.update(), self.fb.update())
+                res = max(self.update_aq(), self.fb.update())
         return res[1]
 
 
